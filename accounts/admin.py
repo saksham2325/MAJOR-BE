@@ -1,6 +1,10 @@
 from django.contrib import admin
+from accounts import models
 
-from accounts.models import User
+from accounts import models
 
 
-admin.site.register(User)
+admin.site.register(models.User)
+admin.site.register(models.Group)
+admin.site.register(models.UserGroup)
+admin.site.register(models.GroupInvitation)
