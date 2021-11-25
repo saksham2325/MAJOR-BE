@@ -4,7 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from commons import Invitation, Timestamp
+from commons.models import Timestamp, Invitation
 from poker_backend import settings
 from pokerboards import constant as pc
 
@@ -16,10 +16,18 @@ class Pokerboard(Timestamp):
     deck = models.DecimalField(max_digits=pc.ESTIMATE_MAX_DIGITS, decimal_places=pc.ESTIMATE_DECIMAL_PLACES, validators=[MaxValueValidator(pc.ESTIMATE_MAX_VALUE), MinValueValidator(pc.ESTIMATE_MIN_VALUE)])
     duration = models.DurationField(default=timedelta(minutes=pc.TIMER_DEFAULT_MINUTES))
 
+    def __str__(self):
+        return self.name
+
 
 class PokerboardInvitation(Timestamp, Invitation):
     pokerboard = models.ForeignKey(Pokerboard, on_delete=models.CASCADE)
     role = ArrayField(models.CharField(choices=pc.ROLE, default=pc.ROLE['player']))
+
+    def __str__(self):
+        if(self.user) :
+            return "{} -> {} {}".format(self.pokerboard.name, self.user.first_name, self.user.last_name)
+        return "{} -> {}".format(self.pokerboard.name, self.new_user_name)
 
 
 class UserPokerboard(Timestamp):
@@ -29,6 +37,9 @@ class UserPokerboard(Timestamp):
 
     class Meta:
         unique_together = ('user', 'pokerboard',)
+
+    def __str__(self):
+        return "{} {} -> {}".format(self.user.first_name, self.user.last_name, self.pokerboard.name)
 
 
 class Ticket(Timestamp):
@@ -41,6 +52,9 @@ class Ticket(Timestamp):
     class Meta:
         unique_together = ('ticket_id', 'pokerboard',)
 
+    def __str__(self):
+        return self.ticket_id
+
 
 class PlayerTicket(Timestamp):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -50,3 +64,6 @@ class PlayerTicket(Timestamp):
 
     class Meta:
         unique_together = ('user', 'ticket',)
+
+    def __str__(self):
+        return "{} {} -> {}".format(self.user.first_name, self.user.last_name, self.ticket.ticket_id)

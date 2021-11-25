@@ -1,6 +1,8 @@
 from django.contrib import admin
 
-from pokerboards.models import PlayerTicket, Pokerboard, PokerboardInvitation, Ticket, UserPokerboard
+from pokerboards.models import (
+    PlayerTicket, Pokerboard, PokerboardInvitation, Ticket, UserPokerboard
+)
 
 
 admin.site.register(Pokerboard)
