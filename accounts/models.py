@@ -10,7 +10,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     first_name = models.CharField(
         max_length=cc.FIRST_NAME_LAST_NAME_MAX_LENGTH)
-    last_name = models.CharField(max_length=cc.FIRST_NAME_LAST_NAME_MAX_LENGTH)
+    last_name = models.CharField(max_length=cc.FIRST_NAME_LAST_NAME_MAX_LENGTH, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -41,5 +41,5 @@ class GroupInvitation(models.Model):
 
 class UserJiraToken(models.Model):
     user = models.ForeignKey(User)
-    jira_token = models.CharField(max_length=100, unique=True)
+    jira_token = models.CharField(max_length=cc.JIRA_TOKEN_MAX_LENGTH, unique=True)
     expiry = models.DateTimeField(null=True)
