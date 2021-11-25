@@ -20,7 +20,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '0+w1ipy!(=$@$r&ra*zaw5h&chkv2&+w8zfd^v-rz1)ltsy*$0'
+SECRET_KEY = os.environ.get('POKER_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -80,11 +80,11 @@ WSGI_APPLICATION = 'poker_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydb4',
-        'USER': 'myuser4',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
-        'PORT': '5432'
+        'NAME': os.environ.get('POKER_DATABASE_NAME'),
+        'USER': os.environ.get('POKER_DATABASE_USER'),
+        'PASSWORD': os.environ.get('POKER_DATABASE_PASSWORD'),
+        'HOST': os.environ.get('POKER_DATABASE_HOST'),
+        'PORT': os.environ.get('POKER_DATABASE_PORT')
     }
 }
 
