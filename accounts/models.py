@@ -40,6 +40,6 @@ class GroupInvitation(models.Model):
 
 
 class UserJiraToken(models.Model):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     jira_token = models.CharField(max_length=cc.JIRA_TOKEN_MAX_LENGTH, unique=True)
     expiry = models.DateTimeField(null=True)
