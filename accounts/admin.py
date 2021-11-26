@@ -1,11 +1,10 @@
 from django.contrib import admin
-from accounts import models
 
-from accounts import models
+from accounts import models as account_models
 
 
-admin.site.register(models.User)
-admin.site.register(models.Group)
-admin.site.register(models.UserGroup)
-admin.site.register(models.GroupInvitation)
-admin.site.register(models.UserJiraToken)
+admin.site.register(account_models.User)
+admin.site.register(account_models.Group)
+admin.site.register(account_models.UserGroup)
+admin.site.register(account_models.GroupInvitation)
+admin.site.register(account_models.UserJiraToken)
