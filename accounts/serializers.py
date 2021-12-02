@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from rest_framework import serializers
+from rest_framework.utils import field_mapping
 
 from accounts import (constants as ac, models as accounts_models)
 
@@ -88,3 +89,10 @@ class UserJiraTokenSerializer(serializers.ModelSerializer):
     class Meta:
         model = accounts_models.UserJiraToken
         fields = ['user', 'jira_token', 'expiry']
+
+"""trying to fetch user by email but not working"""
+# class SearchUserSerializer(serializers.ModelSerializer):
+
+#     class Meta:
+#         model = accounts_models.User
+#         fields = ['first_name', 'last_name', 'email']

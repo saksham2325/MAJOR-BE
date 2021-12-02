@@ -1,4 +1,4 @@
-from rest_framework import authentication, generics, permissions, viewsets
+from rest_framework import authentication,filters, generics, permissions, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
@@ -37,6 +37,12 @@ class UserViewSet(viewsets.ModelViewSet):
     authentication_classes = [authentication.TokenAuthentication]
     queryset = accounts_models.User.objects.all()
     serializer_class = account_serializers.UserSerializer
+
+    """trying to fetch user by email but not working"""
+    # @detail_route(methods=['get'], url_path='retrieve_by_username/(?P<username>\w+)')
+    # def getByUsername(self, request, username):
+    #     user = get_object_or_404(User, username=username)
+    #     return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
 
     def get_permissions(self):
         if self.action == 'create':
@@ -89,3 +95,12 @@ class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
         group = self.get_object()
         group.users.remove(user)
         return Response(data={"message": "Group left successfully!"})
+
+
+"""trying to fetch user by email but not working"""
+# class SearchUser(generics.ListAPIView):
+    
+#     serializer_class = account_serializers.SearchUserSerializer
+#     queryset = accounts_models.User.objects.all()
+#     filter_backends = [filters.SearchFilter]
+#     search_fields = ['email']
