@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework.utils import field_mapping
 
-from accounts import (constants as ac, models as accounts_models)
+from accounts import (constants as accounts_constant, models as accounts_models)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -17,7 +17,7 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(username=username, password=password)
         if not user:
             raise serializers.ValidationError(
-                ac.INVALID_CREDENTIALS, code='authorization')
+                accounts_constant.INVALID_CREDENTIALS, code='authorization')
         else:
             return data
 
@@ -32,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
     def validated_email(self, email):
         email = email.lower()
         if self.instance is not None and self.instance.email != email:
-            raise serializers.ValidationError(ac.EMAIL_CANNOT_UPDATE)
+            raise serializers.ValidationError(accounts_constant.EMAIL_CANNOT_UPDATE)
         return email
 
     def create(self, validated_data):
@@ -62,7 +62,7 @@ class GroupSerializer(serializers.ModelSerializer):
     """applying validator so that admin cannot be updated"""
     def validated_admin(self, admin):
         if self.instance is not None and self.instance.admin != admin:
-            raise serializers.ValidationError(ac.ADMIN_CANNOT_UPDATE)
+            raise serializers.ValidationError(accounts_constant.ADMIN_CANNOT_UPDATE)
         return admin
 
     """override create method to add admin in the group by default when the group created."""

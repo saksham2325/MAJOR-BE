@@ -4,7 +4,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts import (constants as ac, models as accounts_models,
+from accounts import (constants as accounts_constant, models as accounts_models,
                       permissions as custom_permissions, serializers as account_serializers)
 
 
@@ -29,7 +29,7 @@ class UserLogoutView(APIView):
         user = Token.objects.get(key=token).user
         user.auth_token.delete()
         return Response(
-            data={'message': ac.USER_SUCCESSFULLY_LOGOUT}
+            data={'message': accounts_constant.USER_SUCCESSFULLY_LOGOUT}
         )
 
 
@@ -67,7 +67,7 @@ class GroupViewSet(viewsets.ModelViewSet):
         if "users" in request.data:
             for user in request.data["users"]:
                 group.users.remove(user)
-            return Response(data={"message": ac.USER_REMOVED_FROM_GROUP})
+            return Response(data={"message": accounts_constant.USER_REMOVED_FROM_GROUP})
         else:
             return super().destroy(request, *args, **kwargs)
 
