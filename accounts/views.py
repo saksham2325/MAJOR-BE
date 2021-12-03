@@ -15,8 +15,15 @@ class UserLoginView(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = accounts_models.User.objects.get(email=request.data['email'])
         token, created = Token.objects.get_or_create(user=user)
+
         return Response({
-            'token': token.key
+            'token': token.key,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+            }
         })
 
 
