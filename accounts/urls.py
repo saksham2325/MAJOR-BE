@@ -15,6 +15,4 @@ urlpatterns = [
     path('login/', accounts_views.UserLoginView.as_view()),
     path('logout/', accounts_views.UserLogoutView.as_view()),
     path('userGroups/<int:pk>/', accounts_views.UserGroupsView.as_view()),
-    # trying to fetch user by email but not working
-    # path('searchUser/', accounts_views.SearchUser.as_view(), name='search-user')
 ]

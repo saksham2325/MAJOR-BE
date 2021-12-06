@@ -45,12 +45,6 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = accounts_models.User.objects.all()
     serializer_class = account_serializers.UserSerializer
 
-    """trying to fetch user by email but not working"""
-    # @detail_route(methods=['get'], url_path='retrieve_by_username/(?P<username>\w+)')
-    # def getByUsername(self, request, username):
-    #     user = get_object_or_404(User, username=username)
-    #     return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
-
     def get_permissions(self):
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
@@ -67,6 +61,8 @@ class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = account_serializers.GroupSerializer
 
     def get_queryset(self):
+        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        user = Token.objects.get(key=token).user
         return accounts_models.Group.objects.filter(admin=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
@@ -102,12 +98,3 @@ class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
         group = self.get_object()
         group.users.remove(user)
         return Response(data={"message": "Group left successfully!"})
-
-
-"""trying to fetch user by email but not working"""
-# class SearchUser(generics.ListAPIView):
-    
-#     serializer_class = account_serializers.SearchUserSerializer
-#     queryset = accounts_models.User.objects.all()
-#     filter_backends = [filters.SearchFilter]
-#     search_fields = ['email']

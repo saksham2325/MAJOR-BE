@@ -1,8 +1,31 @@
 from django.contrib.auth import authenticate
+from django.core.mail import send_mail
 from rest_framework import serializers
-from rest_framework.utils import field_mapping
+from smtplib import SMTPException
 
 from accounts import (constants as accounts_constant, models as accounts_models)
+from poker_backend import settings
+
+
+class EmailVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def create(self, validated_data):
+        email = validated_data.get('email').lower()
+        subject = 'Poker Planner account verification'
+        message = f'Hi ${email} Welcome to Poker Planner. Please visit to the below link to verify your account. ThankYou'
+        email_from = settings.EMAIL_HOST_USER
+        recipient_list = [email,]
+        try:
+            send_mail(subject, message, email_from, recipient_list)
+         # It will catch other errors related to SMTP.
+        except SMTPException as e:         
+            return {"message": f'There was an error sending an email.${e}'}
+        # It will catch All other possible errors.
+        except Exception as e:
+            return {"message": f'Mail Sending Failed! ${e}'}
+        return {"message": "Verification token send at email"}
+        
 
 
 class LoginSerializer(serializers.Serializer):
@@ -36,9 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
         return email
 
     def create(self, validated_data):
-        user = accounts_models.User(email=validated_data['email'],
-                                    first_name=validated_data['first_name'],
-                                    last_name=validated_data['last_name'])
+        user = super().create(validated_data)
         user.set_password(validated_data['password'])
         user.save()
         return user
