@@ -1,15 +1,15 @@
-ESTIMATE_TYPE = {
-    "fibonacci": 0,
-    "odd": 1,
-    "even": 2,
-    "serial": 3, 
-    "custom": 4,
-}
+FIBONACCI = 0
+ODD = 1
+EVEN = 2
+SERIAL = 3
+CUSTOM = 4
 
-ROLE = {
-    "player": 0,
-    "spectator": 1,
-}
+PLAYER = 0
+SPECTATOR = 1
+
+TODO = 0
+INPROGRESS = 1
+COMPLETED = 2
 
 POKERBOARD_NAME_MAX_LENGTH = 50
 ESTIMATE_MAX_DIGITS = 17
