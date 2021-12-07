@@ -1,10 +1,10 @@
-from rest_framework import authentication,filters, generics, permissions, viewsets
+from rest_framework import authentication, filters, generics, permissions, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts import (constants as accounts_constant, models as accounts_models,
+from accounts import (constants as accounts_constants, models as accounts_models,
                       permissions as custom_permissions, serializers as account_serializers)
 
 
@@ -36,7 +36,7 @@ class UserLogoutView(APIView):
         user = Token.objects.get(key=token).user
         user.auth_token.delete()
         return Response(
-            data={'message': accounts_constant.USER_SUCCESSFULLY_LOGOUT}
+            data={'message': accounts_constants.USER_SUCCESSFULLY_LOGOUT}
         )
 
 
@@ -70,7 +70,7 @@ class GroupViewSet(viewsets.ModelViewSet):
         if "users" in request.data:
             for user in request.data["users"]:
                 group.users.remove(user)
-            return Response(data={"message": accounts_constant.USER_REMOVED_FROM_GROUP})
+            return Response(data={"message": accounts_constants.USER_REMOVED_FROM_GROUP})
         else:
             return super().destroy(request, *args, **kwargs)
 
@@ -92,9 +92,28 @@ class UserJiraTokenViewset(viewsets.ModelViewSet):
 
 class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
 
+    serializer_class = account_serializers.UserGroupSerializer
+    """This will return groups which are asscociated by authenticated user"""
+
+    def get_queryset(self):
+        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        user = Token.objects.get(key=token).user
+        return accounts_models.Group.objects.filter(users=user)
+
     def destroy(self, request, *args, **kwargs):
         token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         user = Token.objects.get(key=token).user
         group = self.get_object()
         group.users.remove(user)
-        return Response(data={"message": "Group left successfully!"})
+        return Response(data={'message': 'Group left successfully!'})
+
+
+class UserFetchBy(generics.ListAPIView):
+    """This is used to get users by email"""
+
+    serializer_class = account_serializers.UserSearchSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['email']
+
+    def get_queryset(self):
+        return accounts_models.User.objects.all()

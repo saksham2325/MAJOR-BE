@@ -4,6 +4,7 @@ from rest_framework import routers
 
 from accounts import views as accounts_views
 
+
 router = routers.DefaultRouter()
 router.register(r'users', accounts_views.UserViewSet, basename="user")
 router.register(r'groups', accounts_views.GroupViewSet, basename="group")
@@ -15,4 +16,5 @@ urlpatterns = [
     path('login/', accounts_views.UserLoginView.as_view()),
     path('logout/', accounts_views.UserLogoutView.as_view()),
     path('userGroups/<int:pk>/', accounts_views.UserGroupsView.as_view()),
+    path('userFilters/', accounts_views.UserFetchBy.as_view()),
 ]
