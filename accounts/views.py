@@ -101,6 +101,7 @@ class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
         return accounts_models.Group.objects.filter(users=user)
 
     def destroy(self, request, *args, **kwargs):
+        print(self.request.user)
         token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         user = Token.objects.get(key=token).user
         group = self.get_object()
