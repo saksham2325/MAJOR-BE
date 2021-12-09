@@ -16,5 +16,6 @@ urlpatterns = [
     path('login/', accounts_views.UserLoginView.as_view()),
     path('logout/', accounts_views.UserLogoutView.as_view()),
     path('userGroups/<int:pk>/', accounts_views.UserGroupsView.as_view()),
+    path('updatePassword/<int:pk>/', accounts_views.UpdatePassword.as_view()),
     path('userFilters/', accounts_views.UserFetchBy.as_view()),
 ]

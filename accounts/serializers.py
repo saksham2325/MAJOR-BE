@@ -132,3 +132,8 @@ class UserSearchSerializer(UserSerializer):
     class Meta:
         model = accounts_models.User
         fields = ['first_name', 'last_name', 'email']
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)

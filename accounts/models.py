@@ -4,6 +4,8 @@ from django.db import models
 from accounts.manager import UserManager
 from accounts import constants as accounts_constant
 
+from poker_backend.settings import AUTH_USER_MODEL as user
+
 
 class User(AbstractUser):
     username = None
@@ -22,7 +24,7 @@ class User(AbstractUser):
 
 
 class Group(models.Model):
-    admin = models.ForeignKey(User, on_delete=models.CASCADE)
+    admin = models.ForeignKey(user, on_delete=models.CASCADE)
     title = models.CharField(max_length=accounts_constant.GROUP_TITLE_MAX_LENGTH, unique=True)
     users = models.ManyToManyField(User, related_name="group_members")
     description = models.CharField(

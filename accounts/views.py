@@ -1,6 +1,7 @@
-from rest_framework import authentication, filters, generics, permissions, viewsets
+from rest_framework import authentication, filters, generics, permissions, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,9 +33,7 @@ class UserLogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        user = Token.objects.get(key=token).user
-        user.auth_token.delete()
+        self.request.user.auth_token.delete()
         return Response(
             data={'message': accounts_constants.USER_SUCCESSFULLY_LOGOUT}
         )
@@ -61,8 +60,6 @@ class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = account_serializers.GroupSerializer
 
     def get_queryset(self):
-        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        user = Token.objects.get(key=token).user
         return accounts_models.Group.objects.filter(admin=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
@@ -101,7 +98,6 @@ class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
         return accounts_models.Group.objects.filter(users=user)
 
     def destroy(self, request, *args, **kwargs):
-        print(self.request.user)
         token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         user = Token.objects.get(key=token).user
         group = self.get_object()
@@ -118,3 +114,25 @@ class UserFetchBy(generics.ListAPIView):
 
     def get_queryset(self):
         return accounts_models.User.objects.all()
+
+
+class UpdatePassword(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def patch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        serializer = account_serializers.ChangePasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            old_password = serializer.data.get("old_password")
+            if not self.object.check_password(old_password):
+                return Response({'status':status.HTTP_400_BAD_REQUEST, 'message':'Current password is wrong.'})
+            self.object.set_password(serializer.data.get("new_password"))
+            self.object.save()
+            return Response({'status':status.HTTP_204_NO_CONTENT, 'message':'Password Updated succesfully.'})
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

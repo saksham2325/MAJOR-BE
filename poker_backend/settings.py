@@ -52,13 +52,13 @@ INSTALLED_APPS = [
 #     ],
 
 #     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.AllowAny',
+#         'rest_framework.permissions.IsAuthenticated',
 #     ],
 # }
 
-# AUTHENTICATION_BACKENDS = (
-#    "django.contrib.auth.backends.ModelBackend",
-# )
+AUTHENTICATION_BACKENDS = (
+   "django.contrib.auth.backends.ModelBackend",
+)
 
 AUTH_USER_MODEL = 'accounts.User'
 
