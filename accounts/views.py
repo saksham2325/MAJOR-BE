@@ -49,6 +49,7 @@ class UserViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.AllowAny]
         elif self.action == 'list' or self.action == 'retrieve':
             permission_classes = [permissions.IsAuthenticated]
+            # permission_classes = [custom_permissions.ListPermission]
         else:
             permission_classes = [
                 permissions.IsAuthenticated, custom_permissions.IsOwner]
