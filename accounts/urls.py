@@ -18,4 +18,7 @@ urlpatterns = [
     path('userGroups/<int:pk>/', accounts_views.UserGroupsView.as_view()),
     path('updatePassword/<int:pk>/', accounts_views.UpdatePassword.as_view()),
     path('userFilters/', accounts_views.UserFetchBy.as_view()),
+    path('verify-token/', accounts_views.VerifyToken.as_view(), name='verify-email'),
+    path('send-token/', accounts_views.SendToken.as_view(), name='send-token'),
+    path('send-invitation/',accounts_views.SendInvitation.as_view(), name='send-invitation'),
 ]
