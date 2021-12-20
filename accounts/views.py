@@ -1,31 +1,31 @@
-from datetime import time
 from django.utils import timezone
-from rest_framework import filters, generics, permissions, status, viewsets
+from rest_framework import filters, generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
-from rest_framework import views
 
 from accounts import (constants as accounts_constants, models as accounts_models,
-                      permissions as custom_permissions, serializers as account_serializers)
+                      permissions as accounts_custom_permissions, serializers as accounts_serializers)
 from commons import models as common_models
 
 
 class SendToken(views.APIView):
+    """Send token to user's email for account verification during signup."""
+    
     authentication_classes = []
     permission_classes = []
     
     def post(self, request):
-        serializer = account_serializers.EmailVerifySerializer(data=request.data)
+        serializer = accounts_serializers.EmailVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.save())
     
 
 class SendInvitation(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, custom_permissions.GroupAdmin]
+    permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.ObjectAdmin]
     
     def post(self, request):
-        serializer = account_serializers.SendInvitationSerializer(data=request.data)
+        serializer = accounts_serializers.SendInvitationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.save())
     
@@ -42,12 +42,10 @@ class VerifyToken(generics.GenericAPIView):
         email_verification_obj = common_models.EmailVerification.objects.get(token_key=token)
         
         if email_verification_obj.is_used or timezone.now()>email_verification_obj.expiry:
-            print('email_expiry', email_verification_obj.expiry)
-            print('time_now',timezone.now())
             return Response({'message':accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED}, status=status.HTTP_400_BAD_REQUEST)
             
         if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
-            """Check whether user already exist with the same account, it could be possible that user registered himself with another verification link and trying to register again with different link."""
+            """Check whether user already exist with the same email, it could be possible that user registered himself with another verification link and trying to register again with different link."""
             
             if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
                 return Response({'message': accounts_constants.USER_ALREADY_EXIST}, status=status.HTTP_204_NO_CONTENT)
@@ -67,6 +65,7 @@ class VerifyToken(generics.GenericAPIView):
                 group_obj.users.add(user)
                 group_obj.save()
                 group_invitation_obj.status=accounts_constants.INVITATION_STATUS_ACCEPTED
+                group_invitation_obj.save()
                 email_verification_obj.is_used=True
                 email_verification_obj.save()
                 return Response({'message': accounts_constants.USER_ADDED},status=status.HTTP_204_NO_CONTENT)
@@ -84,7 +83,7 @@ class UserLoginView(ObtainAuthToken):
     permission_classes = []
 
     def post(self, request):
-        serializer = account_serializers.LoginSerializer(data=request.data)
+        serializer = accounts_serializers.LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = accounts_models.User.objects.get(email=request.data['email'])
         token, created = Token.objects.get_or_create(user=user)
@@ -103,7 +102,7 @@ class UserLoginView(ObtainAuthToken):
 class UserLogoutView(views.APIView):
 
     def post(self, request):
-        self.request.user.auth_token.delete()
+        request.user.auth_token.delete()
         return Response(
             data={'message': accounts_constants.USER_SUCCESSFULLY_LOGOUT}
         )
@@ -111,21 +110,21 @@ class UserLogoutView(views.APIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = accounts_models.User.objects.all()
-    serializer_class = account_serializers.UserSerializer
+    serializer_class = accounts_serializers.UserSerializer
 
     def get_permissions(self):
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
         elif self.action == 'list' :
-            permission_classes = [custom_permissions.ListPermission]
+            permission_classes = [accounts_custom_permissions.ListPermission]
         else:
             permission_classes = [
-                permissions.IsAuthenticated, custom_permissions.IsOwner]
+                permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
         return [permission() for permission in permission_classes]
 
 
 class GroupViewSet(viewsets.ModelViewSet):
-    serializer_class = account_serializers.GroupSerializer
+    serializer_class = accounts_serializers.GroupSerializer
 
     def get_queryset(self):
         return accounts_models.Group.objects.filter(admin=self.request.user)
@@ -142,21 +141,21 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 class UserJiraTokenViewset(viewsets.ModelViewSet):
     queryset = accounts_models.UserJiraToken.objects.all()
-    serializer_class = account_serializers.UserJiraTokenSerializer
+    serializer_class = accounts_serializers.UserJiraTokenSerializer
 
     def get_permissions(self):
         if self.action == 'create':
             permission_classes = [permissions.IsAuthenticated]
         elif self.action == 'list':
-            permission_classes = [custom_permissions.ListPermission]
+            permission_classes = [accounts_custom_permissions.ListPermission]
         else:
-            permission_classes = [permissions.IsAuthenticated, custom_permissions.IsOwner]
+            permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
         return [permission() for permission in permission_classes]
 
 
 class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
 
-    serializer_class = account_serializers.UserGroupSerializer
+    serializer_class = accounts_serializers.UserGroupSerializer
     """This will return groups which are asscociated by authenticated user"""
 
     def get_queryset(self):
@@ -177,7 +176,7 @@ class UserFetchBy(generics.ListAPIView):
     
     authentication_classes = []
     permission_classes = []
-    serializer_class = account_serializers.UserSearchSerializer
+    serializer_class = accounts_serializers.UserSearchSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['email']
 
@@ -192,7 +191,7 @@ class UpdatePassword(views.APIView):
 
     def patch(self, request, *args, **kwargs):
         self.object = self.get_object()
-        serializer = account_serializers.ChangePasswordSerializer(data=request.data)
+        serializer = accounts_serializers.ChangePasswordSerializer(data=request.data)
 
         if serializer.is_valid():
             old_password = serializer.data.get("old_password")

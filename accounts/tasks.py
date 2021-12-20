@@ -1,8 +1,6 @@
 from celery import shared_task
 from django.core.mail import send_mail
-from django.urls import reverse
 
-from accounts import constants as accounts_constants
 from poker_backend import settings
 
 

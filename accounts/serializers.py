@@ -9,7 +9,7 @@ from commons import (models as common_models, utils)
 
 
 class EmailVerifySerializer(serializers.Serializer):
-    """This serializer is used to send email to verify users for signup.It is not completed yet."""
+    """This serializer is used to send email to verify users for signup."""
 
     email = serializers.EmailField()
     name = serializers.CharField()
@@ -120,6 +120,8 @@ class UserSerializer(serializers.ModelSerializer):
         user = super().create(validated_data)
         user.set_password(validated_data['password'])
         user.save()
+        """once user created successfully,access invitation token from requested data and check if the user is registering through group/pokerboard invitation, if yes then update the group invitation status and directly adding user in the group."""
+        
         token = self.context['request'].data['token']
         if not common_models.EmailVerification.objects.filter(token_key=token).exists():
             return user
@@ -131,6 +133,7 @@ class UserSerializer(serializers.ModelSerializer):
             group_obj.users.add(user)
             group_obj.save()
             group_invitation_obj.status=accounts_constants.INVITATION_STATUS_ACCEPTED
+            group_invitation_obj.save()
         email_verification_obj.is_used=True
         email_verification_obj.save()
         return user
@@ -146,8 +149,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-
-    # users = UserSerializer(many=True, read_only=True)
 
     class Meta:
         model = accounts_models.Group
