@@ -1,5 +1,5 @@
 from django.db import router
-from django.urls import include, path
+from django.urls import include, path, re_path
 from rest_framework import routers
 
 from accounts import views as accounts_views
@@ -15,7 +15,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('login/', accounts_views.UserLoginView.as_view()),
     path('logout/', accounts_views.UserLogoutView.as_view()),
-    path('userGroups/<int:pk>/', accounts_views.UserGroupsView.as_view()),
+    path('userGroups/', accounts_views.UserGroupsListView.as_view()), 
+    path('userGroups/<int:pk>/', accounts_views.UserGroupsDestroyView.as_view()),
     path('updatePassword/<int:pk>/', accounts_views.UpdatePassword.as_view()),
     path('userFilters/', accounts_views.UserFetchBy.as_view()),
     path('verify-token/', accounts_views.VerifyToken.as_view(), name='verify-email'),

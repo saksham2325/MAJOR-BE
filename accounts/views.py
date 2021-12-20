@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import filters, generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.mixins import DestroyModelMixin
 from rest_framework.response import Response
 
 from accounts import (constants as accounts_constants, models as accounts_models,
@@ -153,10 +154,20 @@ class UserJiraTokenViewset(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
 
-class UserGroupsView(generics.ListAPIView, generics.DestroyAPIView):
+class UserGroupsListView(generics.ListAPIView):
 
     serializer_class = accounts_serializers.UserGroupSerializer
     """This will return groups which are asscociated by authenticated user"""
+
+    def get_queryset(self):
+        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        user = Token.objects.get(key=token).user
+        return accounts_models.Group.objects.filter(users=user)
+    
+
+class UserGroupsDestroyView(generics.DestroyAPIView):
+    
+    serializer_class = accounts_serializers.UserGroupSerializer
 
     def get_queryset(self):
         token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
@@ -200,5 +211,5 @@ class UpdatePassword(views.APIView):
             self.object.set_password(serializer.data.get("new_password"))
             self.object.save()
             return Response({'status':status.HTTP_204_NO_CONTENT, 'message':accounts_constants.PASSWORD_UPDATED})
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

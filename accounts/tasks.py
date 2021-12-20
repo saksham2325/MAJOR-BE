@@ -9,4 +9,3 @@ def send_verification_mail(subject, to_email, message):
     from_email = settings.EMAIL_HOST_USER
     recipient_list = [to_email, ]
     send_mail(subject,message,from_email,recipient_list,fail_silently=False)
-    
