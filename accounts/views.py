@@ -1,8 +1,9 @@
+from django.db import transaction
+from django.http import request
 from django.utils import timezone
 from rest_framework import filters, generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.mixins import DestroyModelMixin
 from rest_framework.response import Response
 
 from accounts import (constants as accounts_constants, models as accounts_models,
@@ -38,6 +39,7 @@ class VerifyToken(generics.GenericAPIView):
     def post(self, request):
         token = request.data['token']
         if not common_models.EmailVerification.objects.filter(token_key=token).exists():
+            print('notfinding')
             return Response({'message':accounts_constants.INVALID_TOKEN},status=status.HTTP_400_BAD_REQUEST)
         
         email_verification_obj = common_models.EmailVerification.objects.get(token_key=token)
@@ -50,7 +52,7 @@ class VerifyToken(generics.GenericAPIView):
             
             if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
                 return Response({'message': accounts_constants.USER_ALREADY_EXIST}, status=status.HTTP_204_NO_CONTENT)
-            return Response({'message':accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT}, status=status.HTTP_200_OK)
+            return Response({'message':accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email':{email_verification_obj.email}, 'name':{email_verification_obj.name}}, status=status.HTTP_200_OK)
         
         elif email_verification_obj.purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
             
@@ -73,7 +75,7 @@ class VerifyToken(generics.GenericAPIView):
             else:
                 """ redirect to signup page and allow user to register in the app without any further verification. and user will automatically added to the group after successful signup."""
                 
-                return Response({'message':accounts_constants.ADD_AFTER_SIGNUP},status=status.HTTP_200_OK)
+                return Response({'message':accounts_constants.ADD_AFTER_SIGNUP, 'email':{email_verification_obj.email}, 'name':{email_verification_obj.name}},status=status.HTTP_200_OK)
         else:
             # if invitation purpose is 2(pokerboard invite)
             pass
@@ -160,9 +162,7 @@ class UserGroupsListView(generics.ListAPIView):
     """This will return groups which are asscociated by authenticated user"""
 
     def get_queryset(self):
-        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        user = Token.objects.get(key=token).user
-        return accounts_models.Group.objects.filter(users=user)
+        return accounts_models.Group.objects.filter(users=request.user)
     
 
 class UserGroupsDestroyView(generics.DestroyAPIView):
@@ -170,15 +170,11 @@ class UserGroupsDestroyView(generics.DestroyAPIView):
     serializer_class = accounts_serializers.UserGroupSerializer
 
     def get_queryset(self):
-        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        user = Token.objects.get(key=token).user
-        return accounts_models.Group.objects.filter(users=user)
+        return accounts_models.Group.objects.filter(users=request.user)
 
     def destroy(self, request, *args, **kwargs):
-        token = self.request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        user = Token.objects.get(key=token).user
         group = self.get_object()
-        group.users.remove(user)
+        group.users.remove(request.user)
         return Response(data={'message': accounts_constants.SUCCESSFULLY_GROUP_LEFT})
 
 

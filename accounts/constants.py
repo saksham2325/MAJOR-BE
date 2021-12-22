@@ -2,6 +2,10 @@ BASE_URL = 'http://localhost:3000'
 VERIFY_INVITATION_TOKEN = 'verify-invitation-token'
 EMAIL_VERIFICATION_SUBJECT = 'Poker Planner email verification'
 GROUP_INVITATION_SUBJECT = 'Poker Planner Group Invitation'
+GREETING = 'Hi '
+SIGNUP_MESSAGE = ', Welcome to Poker Planner. Please visit to the below link to verify your account.\n'
+LINK_NOT_WORK = '\n Copy the link and paste in your browser in case link does not work.'
+GROUP_INVITATION_MESSAGE = 'Welcome to Poker Planner. Please visit to the below link to join the  group.\n'
 
 SIGNUP_PURPOSE = 0
 GROUP_INVITATION_PURPOSE = 1
@@ -25,7 +29,7 @@ USER_SUCCESSFULLY_LOGOUT = 'User log out successfully'
 INVALID_TOKEN = 'Invalid Token, Pls request for another token'
 TOKEN_EXPIRED_OR_ALREADY_USED = 'Token is expired or used already'
 SUCCESSFULLY_VERIFY_ACCOUNT = 'account verified successfully.Please Register now'
-USER_ALREADY_EXIST = 'Already signedUp, Please login.'
+USER_ALREADY_EXIST = 'Already Registered with this email, Please login.'
 
 SUCCESSFULLY_GROUP_LEFT = 'Group left successfully!'
 USER_ADDED = 'added to the group successfully.Please signin.'

@@ -15,6 +15,12 @@ class EmailVerifySerializer(serializers.Serializer):
     name = serializers.CharField()
     purpose = serializers.IntegerField()
 
+    def validate_email(self, email):
+        email = email.lower()
+        if accounts_models.User.objects.filter(email__exact=email).exists():
+            raise serializers.ValidationError(accounts_constants.USER_ALREADY_EXIST) 
+        return email
+
     def create(self, validated_data):
         email = validated_data.get('email').lower()
         name = validated_data.get('name')
@@ -24,9 +30,9 @@ class EmailVerifySerializer(serializers.Serializer):
         with transaction.atomic():
             common_models.EmailVerification.objects.create(
                 email=email, name=name, token_key=token_key, purpose=purpose)
-            absurl = f"{accounts_constants.BASE_URL}/signup?token={token_key}&email={email}"
+            absurl = f"{accounts_constants.BASE_URL}/signup?token={token_key}"
             subject = accounts_constants.EMAIL_VERIFICATION_SUBJECT
-            message = f"Hi {name} Welcome to Poker Planner. Please visit to the below link to verify your account. \n{absurl}\n copy the link and paste in your browser in case link does not work"
+            message = "{} {} {} {} {}" .format(accounts_constants.GREETING,{name},accounts_constants.SIGNUP_MESSAGE,{absurl},accounts_constants.LINK_NOT_WORK)
             try:
                 accounts_tasks.send_verification_mail.delay(
                     subject, email, message)
@@ -58,11 +64,11 @@ class SendInvitationSerializer(serializers.Serializer):
         with transaction.atomic():
             verification_obj = common_models.EmailVerification.objects.create(
                 email=email, token_key=token_key, purpose=purpose)
-            absurl = f"{accounts_constants.BASE_URL}/signup?token={token_key}&email={email}"
+            absurl = f"{accounts_constants.BASE_URL}/signup?token={token_key}"
             
             if purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
                 subject = accounts_constants.GROUP_INVITATION_SUBJECT
-                message = f"Hi Welcome to Poker Planner. Please visit to the below link to join the  group. \n{absurl}\n Copy the link and paste in your browser in case link does not work"
+                message = "{} {} {} {} {}" .format(accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE,{absurl},accounts_constants.LINK_NOT_WORK)
                 accounts_models.GroupInvitation.objects.create(
                     group_id=id, verification_id=verification_obj.id)
             else:
