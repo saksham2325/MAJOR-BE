@@ -1,6 +1,4 @@
 from django.db import transaction
-from django.http import request
-from django.utils import timezone
 from rest_framework import filters, generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -8,79 +6,45 @@ from rest_framework.response import Response
 
 from accounts import (constants as accounts_constants, models as accounts_models,
                       permissions as accounts_custom_permissions, serializers as accounts_serializers)
-from commons import models as common_models
 
 
 class SendToken(views.APIView):
     """Send token to user's email for account verification during signup."""
-    
+
     authentication_classes = []
     permission_classes = []
-    
+
+    @transaction.atomic
     def post(self, request):
-        serializer = accounts_serializers.EmailVerifySerializer(data=request.data)
+        serializer = accounts_serializers.EmailVerifySerializer(
+            data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.save())
-    
+
 
 class SendInvitation(views.APIView):
-    permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.ObjectAdmin]
-    
+    permission_classes = [permissions.IsAuthenticated,
+                          accounts_custom_permissions.ObjectAdmin]
+
+    @transaction.atomic
     def post(self, request):
-        serializer = accounts_serializers.SendInvitationSerializer(data=request.data)
+        serializer = accounts_serializers.SendInvitationSerializer(
+            data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.save())
-    
+
 
 class VerifyToken(generics.GenericAPIView):
     authentication_classes = []
     permission_classes = []
-    
+
     def post(self, request):
-        token = request.data['token']
-        if not common_models.EmailVerification.objects.filter(token_key=token).exists():
-            print('notfinding')
-            return Response({'message':accounts_constants.INVALID_TOKEN},status=status.HTTP_400_BAD_REQUEST)
-        
-        email_verification_obj = common_models.EmailVerification.objects.get(token_key=token)
-        
-        if email_verification_obj.is_used or timezone.now()>email_verification_obj.expiry:
-            return Response({'message':accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED}, status=status.HTTP_400_BAD_REQUEST)
-            
-        if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
-            """Check whether user already exist with the same email, it could be possible that user registered himself with another verification link and trying to register again with different link."""
-            
-            if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
-                return Response({'message': accounts_constants.USER_ALREADY_EXIST}, status=status.HTTP_204_NO_CONTENT)
-            return Response({'message':accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email':{email_verification_obj.email}, 'name':{email_verification_obj.name}}, status=status.HTTP_200_OK)
-        
-        elif email_verification_obj.purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
-            
-            group_invitation_obj = accounts_models.GroupInvitation.objects.get(verification=email_verification_obj.id)
-            if group_invitation_obj.status==accounts_constants.INVITATION_STATUS_CANCELLED:
-                return Response({'message':accounts_constants.INVITATION_CANCELLED}, status=status.HTTP_204_NO_CONTENT)
-            
-            if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
-                """If user already exist then add him to the group and mark invitation status in GroupInvitation table as "accepted" and mark "is_used" in EmailVerification table true. and display message in frontend (added to the group, pls login)."""
-                
-                user = accounts_models.User.objects.get(email=email_verification_obj.email)
-                group_obj = accounts_models.Group.objects.get(title=group_invitation_obj.group)
-                group_obj.users.add(user)
-                group_obj.save()
-                group_invitation_obj.status=accounts_constants.INVITATION_STATUS_ACCEPTED
-                group_invitation_obj.save()
-                email_verification_obj.is_used=True
-                email_verification_obj.save()
-                return Response({'message': accounts_constants.USER_ADDED},status=status.HTTP_204_NO_CONTENT)
-            else:
-                """ redirect to signup page and allow user to register in the app without any further verification. and user will automatically added to the group after successful signup."""
-                
-                return Response({'message':accounts_constants.ADD_AFTER_SIGNUP, 'email':{email_verification_obj.email}, 'name':{email_verification_obj.name}},status=status.HTTP_200_OK)
-        else:
-            # if invitation purpose is 2(pokerboard invite)
-            pass
-    
-    
+        serializer = accounts_serializers.VerifyTokenSerializer(
+            data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.save())
+
+
 class UserLoginView(ObtainAuthToken):
     authentication_classes = []
     permission_classes = []
@@ -118,7 +82,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        elif self.action == 'list' :
+        elif self.action == 'list':
             permission_classes = [accounts_custom_permissions.ListPermission]
         else:
             permission_classes = [
@@ -127,7 +91,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class GroupViewSet(viewsets.ModelViewSet):
-    serializer_class = accounts_serializers.GroupSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list' or self.action == 'retrieve':
+            return accounts_serializers.GroupViewSerializer
+        return accounts_serializers.GroupSerializer
 
     def get_queryset(self):
         return accounts_models.Group.objects.filter(admin=self.request.user)
@@ -152,43 +120,23 @@ class UserJiraTokenViewset(viewsets.ModelViewSet):
         elif self.action == 'list':
             permission_classes = [accounts_custom_permissions.ListPermission]
         else:
-            permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
+            permission_classes = [
+                permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
         return [permission() for permission in permission_classes]
 
 
-class UserGroupsListView(generics.ListAPIView):
+class UserGroups(generics.ListAPIView, generics.DestroyAPIView):
 
     serializer_class = accounts_serializers.UserGroupSerializer
     """This will return groups which are asscociated by authenticated user"""
 
     def get_queryset(self):
-        return accounts_models.Group.objects.filter(users=request.user)
-    
-
-class UserGroupsDestroyView(generics.DestroyAPIView):
-    
-    serializer_class = accounts_serializers.UserGroupSerializer
-
-    def get_queryset(self):
-        return accounts_models.Group.objects.filter(users=request.user)
+        return accounts_models.Group.objects.filter(users=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
         group = self.get_object()
         group.users.remove(request.user)
         return Response(data={'message': accounts_constants.SUCCESSFULLY_GROUP_LEFT})
-
-
-class UserFetchBy(generics.ListAPIView):
-    """This is used to get users by email"""
-    
-    authentication_classes = []
-    permission_classes = []
-    serializer_class = accounts_serializers.UserSearchSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['email']
-
-    def get_queryset(self):
-        return accounts_models.User.objects.all()
 
 
 class UpdatePassword(views.APIView):
@@ -198,14 +146,15 @@ class UpdatePassword(views.APIView):
 
     def patch(self, request, *args, **kwargs):
         self.object = self.get_object()
-        serializer = accounts_serializers.ChangePasswordSerializer(data=request.data)
+        serializer = accounts_serializers.ChangePasswordSerializer(
+            data=request.data)
 
         if serializer.is_valid():
             old_password = serializer.data.get("old_password")
             if not self.object.check_password(old_password):
-                return Response({'status':status.HTTP_400_BAD_REQUEST, 'message':accounts_constants.WRONG_PASSWORD})
+                return Response({'message': accounts_constants.WRONG_PASSWORD},status=status.HTTP_400_BAD_REQUEST)
             self.object.set_password(serializer.data.get("new_password"))
             self.object.save()
-            return Response({'status':status.HTTP_204_NO_CONTENT, 'message':accounts_constants.PASSWORD_UPDATED})
+            return Response({'status': status.HTTP_204_NO_CONTENT, 'message': accounts_constants.PASSWORD_UPDATED})
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
