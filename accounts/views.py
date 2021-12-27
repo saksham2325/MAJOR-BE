@@ -136,9 +136,30 @@ class UpdatePassword(views.APIView):
         if serializer.is_valid():
             old_password = serializer.data.get("old_password")
             if not self.object.check_password(old_password):
-                return Response({'message': accounts_constants.WRONG_PASSWORD},status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message': accounts_constants.WRONG_PASSWORD}, status=status.HTTP_400_BAD_REQUEST)
             self.object.set_password(serializer.data.get("new_password"))
             self.object.save()
             return Response({'status': status.HTTP_204_NO_CONTENT, 'message': accounts_constants.PASSWORD_UPDATED})
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GroupInvitesViewSet(viewsets.ModelViewSet):
+    serializer_class = accounts_serializers.GroupInvitesSerializer
+
+    def get_queryset(self):
+        return accounts_models.GroupInvitation.objects.filter(group__admin=self.request.user)
+
+
+class UserGroupInvitesViewsets(viewsets.ModelViewSet):
+    
+    def get_queryset(self):
+        email = self.request.query_params.get('email')
+        if email:
+            return accounts_models.GroupInvitation.objects.filter(verification__email=email)
+        return accounts_models.GroupInvitation.objects.all()
+    
+    def get_serializer_class(self):
+        if self.action == 'list' or self.action == 'retrieve':
+            return accounts_serializers.UserGroupInvitesSerializer
+        return accounts_serializers.UserGroupInvitesUpdateSerializer

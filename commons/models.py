@@ -1,8 +1,10 @@
 from datetime import timedelta
+import imp
 from django.db import models
 from django.utils import timezone
 
 from accounts import constants as accounts_constants
+from commons import constants as common_constants
 from poker_backend import settings
 
 
@@ -29,7 +31,7 @@ class EmailVerification(Timestamp):
     email = models.EmailField(blank=True)
     name = models.CharField(
         max_length=accounts_constants.FIRST_NAME_LAST_NAME_MAX_LENGTH, blank=True)
-    token_key = models.CharField(max_length=100, unique=True)
+    token_key = models.CharField(max_length=common_constants.TOKEN_MAX_LENGTH, unique=True)
     is_used = models.BooleanField(default=False)
     purpose = models.PositiveSmallIntegerField(choices=PURPOSE, default=SIGNUP)
 

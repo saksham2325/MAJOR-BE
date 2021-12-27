@@ -1,3 +1,4 @@
+from tokenize import group
 from django.contrib.auth import authenticate
 from django.db import transaction
 from rest_framework import serializers, status
@@ -74,8 +75,13 @@ class SendInvitationSerializer(serializers.Serializer):
             subject = accounts_constants.GROUP_INVITATION_SUBJECT
             message = "{} {} {} {}" .format(
                 accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE, absurl, accounts_constants.LINK_NOT_WORK)
-            accounts_models.GroupInvitation.objects.create(
-                group_id=id, verification_id=verification_obj.id)
+            if accounts_models.User.objects.filter(email=email).exists():
+                user = accounts_models.User.objects.get(email=email)
+                if accounts_models.GroupInvitation.objects.filter(user=user,group_id=id,status=accounts_constants.INVITATION_STATUS_PENDING).exists():
+                    raise serializers.ValidationError({'Already Invited'})
+            else:
+                accounts_models.GroupInvitation.objects.create(
+                    group_id=id, verification_id=verification_obj.id)
         else:
             """for pokerboard Invitation."""
             pass
@@ -129,6 +135,9 @@ class VerifyTokenSerializer(serializers.Serializer):
             if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_CANCELLED:
                 raise serializers.ValidationError(
                     detail={'message': accounts_constants.INVITATION_CANCELLED})
+            if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_DECLINED:
+                raise serializers.ValidationError(
+                    detail={'message': accounts_constants.INVITATION_DECLINED, 'status': status.HTTP_400_BAD_REQUEST})
 
         return data
 
@@ -187,6 +196,13 @@ class LoginSerializer(serializers.Serializer):
             return data
 
 
+class UserReadSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = accounts_models.User
+        fields = ['id', 'email', 'first_name', 'last_name']
+
+
 class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -238,6 +254,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class GroupViewSerializer(serializers.ModelSerializer):
     users = UserSerializer(many=True, read_only=True)
+    admin = UserReadSerializer(read_only=True)
 
     class Meta:
         model = accounts_models.Group
@@ -293,3 +310,50 @@ class UserGroupSerializer(GroupSerializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+
+
+class VerificationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = common_models.EmailVerification
+        fields = ['id', 'email']
+
+
+class GroupInvitesSerializer(serializers.ModelSerializer):
+    """This serializer is to get the list of all group invitations group admin send."""
+    
+    group = GroupViewSerializer()
+    verification = VerificationSerializer()
+
+    class Meta:
+        model = accounts_models.GroupInvitation
+        fields = ['id', 'group', 'status', 'verification']
+
+
+class UserGroupInvitesSerializer(serializers.ModelSerializer):
+    """This serializer is to get the list of all group invitations user received."""
+    
+    group = GroupViewSerializer()
+
+    class Meta:
+        model = accounts_models.GroupInvitation
+        fields = ['id', 'group', 'status']
+
+
+class UserGroupInvitesUpdateSerializer(serializers.Serializer):
+    """Thi serializer is to update invitation(accept/decline group invitation).If user will accept the invitation he will be added to the group."""
+    
+    status = serializers.IntegerField()
+
+    def update(self, instance, validated_data):
+        if validated_data['status'] == accounts_constants.INVITATION_STATUS_DECLINED:
+            instance.status = accounts_constants.INVITATION_STATUS_DECLINED
+            instance.save()
+            return instance
+        
+        group_obj = accounts_models.Group.objects.get(title=instance.group)
+        group_obj.users.add(instance.user)
+        group_obj.save()
+        instance.status = accounts_constants.INVITATION_STATUS_ACCEPTED
+        instance.save()
+        return instance

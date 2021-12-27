@@ -10,6 +10,8 @@ router.register(r'users', accounts_views.UserViewSet, basename="user")
 router.register(r'groups', accounts_views.GroupViewSet, basename="group")
 router.register(r'user-jiraToken',
                 accounts_views.UserJiraTokenViewset, basename="userJiraToken")
+router.register(r'group-invites', accounts_views.GroupInvitesViewSet, basename="group-invites'")
+router.register(r'user-group-invites', accounts_views.UserGroupInvitesViewsets, basename='user-group-invites')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -20,5 +22,5 @@ urlpatterns = [
     path('update-password/<int:pk>/', accounts_views.UpdatePassword.as_view()),
     path('verify-token/', accounts_views.VerifyToken.as_view(), name='verify-email'),
     path('send-token/', accounts_views.SendToken.as_view(), name='send-token'),
-    path('send-invitation/',accounts_views.SendInvitation.as_view(), name='send-invitation'),
+    path('send-invitation/', accounts_views.SendInvitation.as_view(), name='send-invitation'),
 ]
