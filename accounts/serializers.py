@@ -3,7 +3,6 @@ from django.contrib.auth import authenticate
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers, status
-from rest_framework.response import Response
 from smtplib import SMTPException
 
 from accounts import (constants as accounts_constants,
@@ -76,9 +75,20 @@ class SendInvitationSerializer(serializers.Serializer):
         if purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
             subject = accounts_constants.GROUP_INVITATION_SUBJECT
             message = "{} {} {} {}" .format(
-            accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE, absurl, accounts_constants.LINK_NOT_WORK)
-            accounts_models.GroupInvitation.objects.create(
-                group_id=id, verification_id=verification_obj.id)
+                accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE, absurl, accounts_constants.LINK_NOT_WORK)
+            if accounts_models.User.objects.filter(email=email).exists():
+                user = accounts_models.User.objects.get(email=email)
+                queryset = accounts_models.GroupInvitation.objects.all()
+                queryset = queryset.filter(user=user)
+                queryset = queryset.filter(group_id=id)
+                queryset = queryset.filter(status=accounts_constants.INVITATION_STATUS_PENDING)
+                if len(queryset)>0:
+                    raise serializers.ValidationError({'Already Invited'})
+                accounts_models.GroupInvitation.objects.create(
+                    group_id=id, user_id=user.id, verification_id=verification_obj.id)
+            else:
+                accounts_models.GroupInvitation.objects.create(
+                    group_id=id, verification_id=verification_obj.id)
         else:
             """for pokerboard Invitation."""
             pass
@@ -103,37 +113,44 @@ class SendInvitationSerializer(serializers.Serializer):
 
 class VerifyTokenSerializer(serializers.Serializer):
     token = serializers.CharField()
-    
+
     def validate(self, data):
         token = data['token']
         if not common_models.EmailVerification.objects.filter(token_key=token).exists():
-            raise serializers.ValidationError({'message': accounts_constants.INVALID_TOKEN,'status': status.HTTP_400_BAD_REQUEST})
+            raise serializers.ValidationError(
+                {'message': accounts_constants.INVALID_TOKEN, 'status': status.HTTP_400_BAD_REQUEST})
         email_verification_obj = common_models.EmailVerification.objects.get(
             token_key=token)
-        
-        if email_verification_obj.is_used or timezone.now()>email_verification_obj.created_at+timedelta(minutes=accounts_constants.EXPIRY_TIME):
-            raise serializers.ValidationError({'message':accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED,'status':status.HTTP_400_BAD_REQUEST})
-        
+
+        if email_verification_obj.is_used or timezone.now() > email_verification_obj.created_at+timedelta(minutes=accounts_constants.EXPIRY_TIME):
+            raise serializers.ValidationError(
+                {'message': accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED, 'status': status.HTTP_400_BAD_REQUEST})
+
         return data
-    
+
     def create(self, validated_data):
         token = validated_data.get('token')
         email_verification_obj = common_models.EmailVerification.objects.get(
             token_key=token)
-        
+
         if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
             """Check whether user already exist with the same email, it could be possible that user registered himself with another verification link and trying to register again with different link."""
 
             if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
-                return {'message': accounts_constants.USER_ALREADY_EXIST,'status':status.HTTP_204_NO_CONTENT}
-            return {'message': accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status':status.HTTP_200_OK}
-        
+                return {'message': accounts_constants.USER_ALREADY_EXIST, 'status': status.HTTP_204_NO_CONTENT}
+            return {'message': accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status': status.HTTP_200_OK}
+
         elif email_verification_obj.purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
 
             group_invitation_obj = accounts_models.GroupInvitation.objects.get(
                 verification=email_verification_obj.id)
             if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_CANCELLED:
-               raise serializers.ValidationError(detail={'message': accounts_constants.INVITATION_CANCELLED, 'status':status.HTTP_204_NO_CONTENT})
+                raise serializers.ValidationError(
+                    detail={'message': accounts_constants.INVITATION_CANCELLED, 'status': status.HTTP_400_BAD_REQUEST})
+
+            if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_DECLINED:
+                raise serializers.ValidationError(
+                    detail={'message': accounts_constants.INVITATION_DECLINED, 'status': status.HTTP_400_BAD_REQUEST})
 
             if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
                 """If user already exist then add him to the group and mark invitation status in GroupInvitation table as "accepted" and mark "is_used" in EmailVerification table true. and display message in frontend (added to the group, pls login)."""
@@ -148,14 +165,14 @@ class VerifyTokenSerializer(serializers.Serializer):
                 group_invitation_obj.save()
                 email_verification_obj.is_used = True
                 email_verification_obj.save()
-                return {'message': accounts_constants.USER_ADDED, 'status':status.HTTP_204_NO_CONTENT}
+                return {'message': accounts_constants.USER_ADDED, 'status': status.HTTP_204_NO_CONTENT}
             else:
                 """ redirect to signup page and allow user to register in the app without any further verification. and user will automatically added to the group after successful signup."""
 
-                return {'message': accounts_constants.ADD_AFTER_SIGNUP, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status':status.HTTP_200_OK}
+                return {'message': accounts_constants.ADD_AFTER_SIGNUP, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status': status.HTTP_200_OK}
         else:
-            """if invitation purpose is 2(pokerboard invite)""" 
-            pass      
+            """if invitation purpose is 2(pokerboard invite)"""
+            pass
 
 
 class LoginSerializer(serializers.Serializer):
@@ -173,6 +190,13 @@ class LoginSerializer(serializers.Serializer):
                 accounts_constants.INVALID_CREDENTIALS, code='authorization')
         else:
             return data
+
+
+class UserReadSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = accounts_models.User
+        fields = ['id', 'email', 'first_name', 'last_name']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -226,6 +250,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class GroupViewSerializer(serializers.ModelSerializer):
     users = UserSerializer(many=True, read_only=True)
+    admin = UserReadSerializer(read_only=True)
 
     class Meta:
         model = accounts_models.Group
@@ -281,3 +306,50 @@ class UserGroupSerializer(GroupSerializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+
+
+class VerificationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = common_models.EmailVerification
+        fields = ['id', 'email']
+
+
+class GroupInvitesSerializer(serializers.ModelSerializer):
+    """This serializer is to get the list of all group invitations group admin send."""
+    
+    group = GroupViewSerializer()
+    verification = VerificationSerializer()
+
+    class Meta:
+        model = accounts_models.GroupInvitation
+        fields = ['id', 'group', 'status', 'verification']
+
+
+class UserGroupInvitesSerializer(serializers.ModelSerializer):
+    """This serializer is to get the list of all group invitations user received."""
+    
+    group = GroupViewSerializer()
+
+    class Meta:
+        model = accounts_models.GroupInvitation
+        fields = ['id', 'group', 'status']
+
+
+class UserGroupInvitesUpdateSerializer(serializers.Serializer):
+    """Thi serializer is to update invitation(accept/decline group invitation).If user will accept the invitation he will be added to the group."""
+    
+    status = serializers.IntegerField()
+
+    def update(self, instance, validated_data):
+        if validated_data['status'] == accounts_constants.INVITATION_STATUS_DECLINED:
+            instance.status = accounts_constants.INVITATION_STATUS_DECLINED
+            instance.save()
+            return instance
+        
+        group_obj = accounts_models.Group.objects.get(title=instance.group)
+        group_obj.users.add(instance.user)
+        group_obj.save()
+        instance.status = accounts_constants.INVITATION_STATUS_ACCEPTED
+        instance.save()
+        return instance
