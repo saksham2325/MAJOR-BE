@@ -4,6 +4,8 @@ EMAIL_VERIFICATION_SUBJECT = 'Poker Planner email verification'
 GROUP_INVITATION_SUBJECT = 'Poker Planner Group Invitation'
 SIGNUP_MESSAGE = 'Hi {}, Welcome to Poker Planner. Please visit to the below link to verify your account.\n {} \n Copy the link and paste in your browser in case link does not work.'
 GROUP_INVITATION_MESSAGE = 'Hi, Welcome to Poker Planner. Please visit to the below link to Join the group.\n {} \n Copy the link and paste in your browser in case link does not work.'
+POKERBOARD_INVITATION_SUBJECT = 'Pokerbard Invitation'
+POKERBOARD_INVITATION_MESSAGE = 'Hi, Welcome to Poker Planner.You are invited in a Pokerboard for the role of {}.Please visit to the below link to accept the invitation.\n {} \n Copy the link and paste in your browser in case link does not work.'
 
 SIGNUP_PURPOSE = 0
 GROUP_INVITATION_PURPOSE = 1

@@ -30,8 +30,8 @@ class Pokerboard(commons_models.Timestamp):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     estimate_type = models.PositiveSmallIntegerField(
         choices=ESTIMATE_TYPE, default=FIBONACCI)
-    deck = models.DecimalField(max_digits=pokerboards_constant.ESTIMATE_MAX_DIGITS, decimal_places=pokerboards_constant.ESTIMATE_DECIMAL_PLACES, validators=[
-                               MaxValueValidator(pokerboards_constant.ESTIMATE_MAX_VALUE), MinValueValidator(pokerboards_constant.ESTIMATE_MIN_VALUE)])
+    deck = ArrayField(models.DecimalField(max_digits=pokerboards_constant.ESTIMATE_MAX_DIGITS, decimal_places=pokerboards_constant.ESTIMATE_DECIMAL_PLACES, validators=[
+        MaxValueValidator(pokerboards_constant.ESTIMATE_MAX_VALUE), MinValueValidator(pokerboards_constant.ESTIMATE_MIN_VALUE)]))
     duration = models.DurationField(default=timedelta(
         minutes=pokerboards_constant.TIMER_DEFAULT_MINUTES))
 
@@ -49,7 +49,7 @@ class PokerboardInvitation(commons_models.Invitation):
     ]
 
     pokerboard = models.ForeignKey(Pokerboard, on_delete=models.CASCADE)
-    role = ArrayField(models.CharField(
+    role = ArrayField(models.PositiveSmallIntegerField(
         choices=ROLE, default=PLAYER))
 
     def __str__(self):
@@ -70,7 +70,7 @@ class UserPokerboard(commons_models.Timestamp):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE)
     pokerboard = models.ForeignKey(Pokerboard, on_delete=models.CASCADE)
-    role = ArrayField(models.CharField(
+    role = ArrayField(models.PositiveSmallIntegerField(
         choices=ROLE, default=PLAYER))
 
     class Meta:
