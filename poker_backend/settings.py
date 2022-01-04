@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'accounts',
     'commons',
+    'pokerboards',
 ]
 
 REST_FRAMEWORK = {

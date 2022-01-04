@@ -29,7 +29,7 @@ class SendInvitation(views.APIView):
     @transaction.atomic
     def post(self, request):
         serializer = accounts_serializers.SendInvitationSerializer(
-            data=request.data)
+            data=request.data,  context={'request': request})
         serializer.is_valid(raise_exception=True)
         return Response(serializer.save())
 
