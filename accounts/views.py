@@ -1,5 +1,5 @@
 from django.db import transaction
-from rest_framework import filters, generics, permissions, status, views, viewsets
+from rest_framework import generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
@@ -23,8 +23,8 @@ class SendToken(views.APIView):
 
 
 class SendInvitation(views.APIView):
-    permission_classes = [permissions.IsAuthenticated,
-                          accounts_custom_permissions.ObjectAdmin]
+    permission_classes = (permissions.IsAuthenticated,
+                          accounts_custom_permissions.ObjectAdmin)
 
     @transaction.atomic
     def post(self, request):
@@ -76,18 +76,10 @@ class UserLogoutView(views.APIView):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = accounts_models.User.objects.all()
     serializer_class = accounts_serializers.UserSerializer
-
-    def get_permissions(self):
-        if self.action == 'create':
-            permission_classes = [permissions.AllowAny]
-        elif self.action == 'list':
-            permission_classes = [accounts_custom_permissions.ListPermission]
-        else:
-            permission_classes = [
-                permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
-        return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        return accounts_models.User.objects.filter(id=self.request.user.id)
 
 
 class GroupViewSet(viewsets.ModelViewSet):
@@ -111,18 +103,10 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 
 class UserJiraTokenViewset(viewsets.ModelViewSet):
-    queryset = accounts_models.UserJiraToken.objects.all()
     serializer_class = accounts_serializers.UserJiraTokenSerializer
-
-    def get_permissions(self):
-        if self.action == 'create':
-            permission_classes = [permissions.IsAuthenticated]
-        elif self.action == 'list':
-            permission_classes = [accounts_custom_permissions.ListPermission]
-        else:
-            permission_classes = [
-                permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
-        return [permission() for permission in permission_classes]
+    
+    def get_queryset(self):
+        return accounts_models.UserJiraToken.objects.filter(user_id=self.request.user.id)
 
 
 class UserGroups(generics.ListAPIView, generics.DestroyAPIView):

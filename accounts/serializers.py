@@ -1,9 +1,6 @@
-from datetime import timedelta
 from django.contrib.auth import authenticate
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import serializers, status
-from rest_framework.response import Response
 from smtplib import SMTPException
 
 from accounts import (constants as accounts_constants,
@@ -46,13 +43,13 @@ class EmailVerifySerializer(serializers.Serializer):
             """It will catch other errors related to SMTP."""
 
             transaction.savepoint_rollback(save_point)
-            return {"message": f'There was an error sending an email.'}
+            return {"message": accounts_constants.EMAIL_SEND_ERROR}
 
         except Exception as e:
             """It will catch All other possible errors."""
 
             transaction.savepoint_rollback(save_point)
-            return {"message": f'Mail Sending Failed!'}
+            return {"message": accounts_constants.EMAIL_SEND_FAILED}
 
         return {"message": accounts_constants.TOKEN_SENT}
 
@@ -76,7 +73,7 @@ class SendInvitationSerializer(serializers.Serializer):
         if purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
             subject = accounts_constants.GROUP_INVITATION_SUBJECT
             message = "{} {} {} {}" .format(
-            accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE, absurl, accounts_constants.LINK_NOT_WORK)
+                accounts_constants.GREETING, accounts_constants.GROUP_INVITATION_MESSAGE, absurl, accounts_constants.LINK_NOT_WORK)
             accounts_models.GroupInvitation.objects.create(
                 group_id=id, verification_id=verification_obj.id)
         else:
@@ -90,54 +87,68 @@ class SendInvitationSerializer(serializers.Serializer):
             """It will catch other errors related to SMTP."""
 
             transaction.savepoint_rollback(save_point)
-            return {"message": f'There was an error sending an email.'}
+            return {"message": accounts_constants.EMAIL_SEND_ERROR}
 
         except Exception as e:
             """It will catch All other possible errors."""
 
             transaction.savepoint_rollback(save_point)
-            return {"message": f'Invitation Failed!'}
+            return {"message": accounts_constants.INVITATION_FAILED}
 
         return {"message": accounts_constants.INVITED}
 
 
 class VerifyTokenSerializer(serializers.Serializer):
     token = serializers.CharField()
-    
+
     def validate(self, data):
         token = data['token']
         if not common_models.EmailVerification.objects.filter(token_key=token).exists():
-            raise serializers.ValidationError({'message': accounts_constants.INVALID_TOKEN,'status': status.HTTP_400_BAD_REQUEST})
+            raise serializers.ValidationError(
+                {'message': accounts_constants.INVALID_TOKEN})
         email_verification_obj = common_models.EmailVerification.objects.get(
             token_key=token)
-        
-        if email_verification_obj.is_used or timezone.now()>email_verification_obj.created_at+timedelta(minutes=accounts_constants.EXPIRY_TIME):
-            raise serializers.ValidationError({'message':accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED,'status':status.HTTP_400_BAD_REQUEST})
-        
+
+        if email_verification_obj.is_used or utils.is_expired(email_verification_obj.created_at):
+            raise serializers.ValidationError(
+                {'message': accounts_constants.TOKEN_EXPIRED_OR_ALREADY_USED})
+
+        if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
+            """
+            Check whether user already exist with the same email, it could be possible that user registered himself with another verification link and trying to register again with different link.
+            """
+            if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
+                return {'message': accounts_constants.USER_ALREADY_EXIST, 'status': status.HTTP_204_NO_CONTENT}
+
+        elif email_verification_obj.purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
+            """
+            Check if Group Manager/admin cancelled the status, if yes then simply return.
+            """
+            group_invitation_obj = accounts_models.GroupInvitation.objects.get(
+                verification=email_verification_obj.id)
+            if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_CANCELLED:
+                raise serializers.ValidationError(
+                    detail={'message': accounts_constants.INVITATION_CANCELLED})
+
         return data
-    
+
     def create(self, validated_data):
         token = validated_data.get('token')
         email_verification_obj = common_models.EmailVerification.objects.get(
             token_key=token)
-        
-        if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
-            """Check whether user already exist with the same email, it could be possible that user registered himself with another verification link and trying to register again with different link."""
 
-            if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
-                return {'message': accounts_constants.USER_ALREADY_EXIST,'status':status.HTTP_204_NO_CONTENT}
-            return {'message': accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status':status.HTTP_200_OK}
-        
+        if email_verification_obj.purpose == accounts_constants.SIGNUP_PURPOSE:
+            return {'message': accounts_constants.SUCCESSFULLY_VERIFY_ACCOUNT, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status': status.HTTP_200_OK}
+
         elif email_verification_obj.purpose == accounts_constants.GROUP_INVITATION_PURPOSE:
 
             group_invitation_obj = accounts_models.GroupInvitation.objects.get(
                 verification=email_verification_obj.id)
-            if group_invitation_obj.status == accounts_constants.INVITATION_STATUS_CANCELLED:
-               raise serializers.ValidationError(detail={'message': accounts_constants.INVITATION_CANCELLED, 'status':status.HTTP_204_NO_CONTENT})
 
             if accounts_models.User.objects.filter(email=email_verification_obj.email).exists():
-                """If user already exist then add him to the group and mark invitation status in GroupInvitation table as "accepted" and mark "is_used" in EmailVerification table true. and display message in frontend (added to the group, pls login)."""
-
+                """
+                If user already exist then add him to the group and mark invitation status in GroupInvitation table as "accepted" and mark "is_used" in EmailVerification table true. and display message in frontend (added to the group, pls login).
+                """
                 user = accounts_models.User.objects.get(
                     email=email_verification_obj.email)
                 group_obj = accounts_models.Group.objects.get(
@@ -148,14 +159,15 @@ class VerifyTokenSerializer(serializers.Serializer):
                 group_invitation_obj.save()
                 email_verification_obj.is_used = True
                 email_verification_obj.save()
-                return {'message': accounts_constants.USER_ADDED, 'status':status.HTTP_204_NO_CONTENT}
+                return {'message': accounts_constants.USER_ADDED, 'status': status.HTTP_204_NO_CONTENT}
             else:
-                """ redirect to signup page and allow user to register in the app without any further verification. and user will automatically added to the group after successful signup."""
-
-                return {'message': accounts_constants.ADD_AFTER_SIGNUP, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status':status.HTTP_200_OK}
+                """
+                Redirect to signup page and allow user to register in the app without any further verification. and user will automatically added to the group after successful signup.
+                """
+                return {'message': accounts_constants.ADD_AFTER_SIGNUP, 'email': {email_verification_obj.email}, 'name': {email_verification_obj.name}, 'status': status.HTTP_200_OK}
         else:
-            """if invitation purpose is 2(pokerboard invite)""" 
-            pass      
+            """if invitation purpose is 2(pokerboard invite)"""
+            pass
 
 
 class LoginSerializer(serializers.Serializer):
