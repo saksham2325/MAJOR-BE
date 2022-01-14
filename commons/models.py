@@ -1,7 +1,4 @@
-from datetime import timedelta
-import imp
 from django.db import models
-from django.utils import timezone
 
 from accounts import constants as accounts_constants
 from commons import constants as common_constants
