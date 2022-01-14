@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import generics, permissions, status, views, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -8,41 +7,34 @@ from accounts import (constants as accounts_constants, models as accounts_models
                       permissions as accounts_custom_permissions, serializers as accounts_serializers)
 
 
-class SendToken(views.APIView):
-    """Send token to user's email for account verification during signup."""
+class SendToken(generics.CreateAPIView):
+    """
+    Send token to user's email for account verification during signup.
+    """
+    authentication_classes = []
+    permission_classes = []
+    serializer_class = accounts_serializers.EmailVerifySerializer
 
+
+class SendInvitation(generics.CreateAPIView):
+    """
+    Send Group/Poker invitation to user's email.
+    """
+    permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.ObjectAdmin]
+    serializer_class = accounts_serializers.SendInvitationSerializer
+
+
+class VerifyToken(generics.CreateAPIView):
     authentication_classes = []
     permission_classes = []
 
-    @transaction.atomic
-    def post(self, request):
-        serializer = accounts_serializers.EmailVerifySerializer(
-            data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.save())
+
+class VerifySignupToken(VerifyToken):
+    serializer_class = accounts_serializers.VerifySignupTokenSerializer
 
 
-class SendInvitation(views.APIView):
-    permission_classes = (permissions.IsAuthenticated,
-                          accounts_custom_permissions.ObjectAdmin)
-
-    @transaction.atomic
-    def post(self, request):
-        serializer = accounts_serializers.SendInvitationSerializer(
-            data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.save())
-
-
-class VerifyToken(generics.GenericAPIView):
-    authentication_classes = []
-    permission_classes = []
-
-    def post(self, request):
-        serializer = accounts_serializers.VerifyTokenSerializer(
-            data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.save())
+class VerifyGroupToken(VerifyToken):
+    serializer_class = accounts_serializers.VerifyGroupTokenSerializer    
 
 
 class UserLoginView(ObtainAuthToken):
@@ -80,6 +72,15 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         return accounts_models.User.objects.filter(id=self.request.user.id)
+    
+    def get_permissions(self):
+        if self.action == 'create':
+            permission_classes = [permissions.AllowAny]
+        elif self.action == 'list':
+            permission_classes = [accounts_custom_permissions.ListPermission]
+        else:
+            permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.IsOwner]
+        return [permission() for permission in permission_classes]
 
 
 class GroupViewSet(viewsets.ModelViewSet):
@@ -94,9 +95,9 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         group = self.get_object()
-        if "users" in request.data:
-            for user in request.data["users"]:
-                group.users.remove(user)
+        user = self.request.query_params.get('user')
+        if user:
+            group.users.remove(user)
             return Response(data={"message": accounts_constants.USER_REMOVED_FROM_GROUP})
         else:
             return super().destroy(request, *args, **kwargs)

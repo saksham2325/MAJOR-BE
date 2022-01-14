@@ -1,5 +1,5 @@
 from django.db import router
-from django.urls import include, path, re_path
+from django.urls import include, path
 from rest_framework import routers
 
 from accounts import views as accounts_views
@@ -20,7 +20,8 @@ urlpatterns = [
     path('user-groups/', accounts_views.UserGroups.as_view(), name='user-groups'),
     path('user-groups/<int:pk>/', accounts_views.UserGroups.as_view()),
     path('update-password/<int:pk>/', accounts_views.UpdatePassword.as_view()),
-    path('verify-token/', accounts_views.VerifyToken.as_view(), name='verify-email'),
+    path('verify-signup-token/', accounts_views.VerifySignupToken.as_view(), name='verify-signup-token'),
+    path('verify-group-token/', accounts_views.VerifyGroupToken.as_view(), name='verify-group-token'),
     path('send-token/', accounts_views.SendToken.as_view(), name='send-token'),
     path('send-invitation/', accounts_views.SendInvitation.as_view(), name='send-invitation'),
 ]
