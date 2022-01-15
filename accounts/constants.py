@@ -45,3 +45,9 @@ INVITED = 'Invited successfully.'
 INVITATION_CANCELLED = 'Group owner has cancelled the Invitation.'
 INVITATION_DECLINED = 'Cannot Joined, You have already declined the invitation.'
 SOMETHING_WENT_WRONG = 'Something Went Wrong.'
+ALREADY_INVITED = 'Already Invited.'
+ALREADY_IN_GROUP = 'Already Present in Group.'
+USER_ROLE = {
+    '0': 'Player',
+    '1': 'Spectator',
+}

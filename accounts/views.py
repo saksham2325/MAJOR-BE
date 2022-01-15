@@ -37,6 +37,10 @@ class VerifyGroupToken(VerifyToken):
     serializer_class = accounts_serializers.VerifyGroupTokenSerializer    
 
 
+class VerifyPokerToken(VerifyToken):
+    serializer_class = accounts_serializers.VerifyPokerTokenSerializer 
+
+
 class UserLoginView(ObtainAuthToken):
     authentication_classes = []
     permission_classes = []

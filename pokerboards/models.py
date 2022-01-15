@@ -55,7 +55,7 @@ class PokerboardInvitation(commons_models.Invitation):
     def __str__(self):
         if(self.user):
             return "{} -> {} {}".format(self.pokerboard.name, self.user.first_name, self.user.last_name)
-        return "{} -> {}".format(self.pokerboard.name, self.new_user_name)
+        return self.pokerboard.name
 
 
 class UserPokerboard(commons_models.Timestamp):

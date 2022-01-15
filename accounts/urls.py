@@ -22,6 +22,7 @@ urlpatterns = [
     path('update-password/<int:pk>/', accounts_views.UpdatePassword.as_view()),
     path('verify-signup-token/', accounts_views.VerifySignupToken.as_view(), name='verify-signup-token'),
     path('verify-group-token/', accounts_views.VerifyGroupToken.as_view(), name='verify-group-token'),
+    path('verify-poker-token/', accounts_views.VerifyPokerToken.as_view(), name='verify-poker-token'),
     path('send-token/', accounts_views.SendToken.as_view(), name='send-token'),
     path('send-invitation/', accounts_views.SendInvitation.as_view(), name='send-invitation'),
 ]
