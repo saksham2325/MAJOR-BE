@@ -80,7 +80,6 @@ class SendInvitationSerializer(serializers.Serializer):
             if accounts_models.GroupInvitation.objects.filter(group_id=id, status=accounts_constants.INVITATION_STATUS_PENDING, user=user).exists():
                 raise serializers.ValidationError(
                     accounts_constants.ALREADY_INVITED)
-
             return data
         elif purpose == accounts_constants.POKERBOARD_INVITATION_PURPOSE and accounts_models.User.objects.filter(email=email).exists():
             role = self.context['request'].query_params.get('role')
@@ -92,7 +91,6 @@ class SendInvitationSerializer(serializers.Serializer):
                     user=user, pokerboard_id=id, status=accounts_constants.INVITATION_STATUS_PENDING, role=[role]).exists():
                 raise serializers.ValidationError(
                     accounts_constants.ALREADY_INVITED)
-                
             return data
         return data
 
@@ -154,6 +152,54 @@ class SendInvitationSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 accounts_constants.INVITATION_FAILED)
 
+        return validated_data
+
+
+class SendInvitationToGroupSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+
+    def validate(self, data):
+        game_id = data.get('id')
+        group_title = self.context['request'].query_params.get('group_title')
+        role = self.context['request'].query_params.get('role')
+        group = accounts_models.Group.objects.get(title=group_title)
+        group_users = []
+        users = group.users.all()
+        for user in users:
+            if not pokerboard_models.UserPokerboard.objects.filter(user=user, pokerboard_id=game_id).exists() and not pokerboard_models.PokerboardInvitation.objects.filter(user=user, pokerboard_id=game_id, status=accounts_constants.INVITATION_STATUS_PENDING, role=[role]).exists():
+                group_users.append(user)
+        """
+        If all the group users are already invited or they already exist in the pokerboard.Then nothing to invite.
+        """
+        if len(group_users) == 0:
+            raise serializers.ValidationError(
+                accounts_constants.ALREADY_EXIST_OR_INVITED)
+        data['group_users'] = group_users
+        return data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        game_id = validated_data.get('id')
+        role = self.context['request'].query_params.get('role')
+        subject = accounts_constants.POKERBOARD_INVITATION_SUBJECT
+        try:
+            for user in validated_data['group_users']:
+                token_key = utils.token_generator()
+                verification_obj = common_models.EmailVerification.objects.create(
+                    email=user.email, token_key=token_key, purpose=accounts_constants.POKERBOARD_INVITATION_PURPOSE)
+                pokerboard_models.PokerboardInvitation.objects.create(
+                    pokerboard_id=game_id, user_id=user.id, verification_id=verification_obj.id, role=[role])
+                absurl = f"{accounts_constants.BASE_URL}/verify-poker-token?token={token_key}"
+                message = accounts_constants.POKERBOARD_INVITATION_MESSAGE.format(
+                    accounts_constants.USER_ROLE[role], absurl)
+                accounts_tasks.send_verification_mail.delay(
+                subject, user.email, message)
+        except SMTPException as e:
+            """
+            It will catch other errors related to SMTP.
+            """
+            raise serializers.ValidationError(
+                accounts_constants.EMAIL_SEND_FAILED)
         return validated_data
 
 
@@ -360,7 +406,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         email_verification_obj = common_models.EmailVerification.objects.get(
             token_key=token)
-        
+
         if accounts_models.GroupInvitation.objects.filter(verification=email_verification_obj).exists():
             """
             If user is coming through Group Invitation.
@@ -373,7 +419,7 @@ class UserSerializer(serializers.ModelSerializer):
             group_obj.save()
             group_invitation_obj.status = accounts_constants.INVITATION_STATUS_ACCEPTED
             group_invitation_obj.save()
-    
+
         elif pokerboard_models.PokerboardInvitation.objects.filter(verification=email_verification_obj).exists():
             """
             If user is coming through Pokerboard Invitation
@@ -510,3 +556,10 @@ class UserGroupInvitesUpdateSerializer(serializers.Serializer):
             instance.status = accounts_constants.INVITATION_STATUS_ACCEPTED
             instance.save()
         return instance
+
+
+class ListGroupSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = accounts_models.Group
+        fields = ['title']

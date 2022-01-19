@@ -47,6 +47,7 @@ INVITATION_DECLINED = 'Cannot Joined, You have already declined the invitation.'
 SOMETHING_WENT_WRONG = 'Something Went Wrong.'
 ALREADY_INVITED = 'Already Invited.'
 ALREADY_IN_GROUP = 'Already Present in Group.'
+ALREADY_EXIST_OR_INVITED = 'All users exist or already invited'
 USER_ROLE = {
     '0': 'Player',
     '1': 'Spectator',

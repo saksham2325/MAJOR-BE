@@ -21,7 +21,10 @@ class SendInvitation(generics.CreateAPIView):
     Send Group/Poker invitation to user's email.
     """
     permission_classes = [permissions.IsAuthenticated, accounts_custom_permissions.ObjectAdmin]
-    serializer_class = accounts_serializers.SendInvitationSerializer
+    def get_serializer_class(self):
+        if self.request.query_params.get('group_title'):
+            return accounts_serializers.SendInvitationToGroupSerializer
+        return accounts_serializers.SendInvitationSerializer
 
 
 class VerifyToken(generics.CreateAPIView):
@@ -168,3 +171,11 @@ class UserGroupInvitesViewsets(viewsets.ModelViewSet):
         if self.action == 'list' or self.action == 'retrieve':
             return accounts_serializers.UserGroupInvitesSerializer
         return accounts_serializers.UserGroupInvitesUpdateSerializer
+
+
+class ListGroups(generics.ListAPIView):
+    """
+    This View will give list of all the groups with only "title" field.
+    """
+    serializer_class = accounts_serializers.ListGroupSerializer
+    queryset = accounts_models.Group.objects.all()
