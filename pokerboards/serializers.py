@@ -24,3 +24,34 @@ class UserPokerboardSerializer(serializers.ModelSerializer):
     class Meta:
         model = pokerboard_models.UserPokerboard
         fields = ['id', 'user', 'role', 'pokerboard']
+
+
+class MessageSerializer(serializers.Serializer):
+    """Serializer for messages"""
+
+    type = serializers.ChoiceField(choices=pokerboard_constants.TYPE_CHOICES)
+    message = serializers.DictField()
+
+
+class SubmitEstimateSerializer(serializers.Serializer):
+    """Serializer for submitting estimates"""
+
+    ticket = serializers.IntegerField()
+    pokerboard_id = serializers.IntegerField()
+    estimate = serializers.IntegerField()
+
+    # def validate(self, data):
+    #     if not pokerboard_models.Ticket.objects.filter(pk=data['ticket'], pokerboard_id=data['pokerboard_id']).exists():
+    #         raise serializers.ValidationError('Ticket not exists')
+    #     return data
+
+    def to_representation(self, obj):
+        # get the original representation
+        data = super().to_representation(obj)
+        data.pop('pokerboard_id')
+        return data
+
+    class Meta:
+        model = pokerboard_models.Pokerboard
+        fields = ['id', 'name']
+        extra_kwargs = {'id': {'read_only': True}}
